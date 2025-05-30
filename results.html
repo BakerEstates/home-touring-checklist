@@ -1,0 +1,154 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Touring Checklist - Results</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+    <div class="container mx-auto p-6 max-w-3xl">
+        <h1 class="text-4xl font-bold text-center text-gray-900 mb-4">Home Touring Checklist Results</h1>
+        <div class="bg-white p-8 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-4">Your Feedback</h2>
+            <div id="feedbackText" class="text-lg text-gray-700 mb-6"></div>
+            <button onclick="goBack()" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Redo Checklist</button>
+        </div>
+    </div>
+
+    <script>
+        function goBack() {
+            const params = new URLSearchParams(window.location.search);
+            window.location.href = `index.html?${params.toString()}`;
+        }
+
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const answers = {};
+            for (let i = 1; i <= 30; i++) {
+                answers[`q${i}`] = params.get(`q${i}`) || 'idk';
+            }
+
+            const feedbackText = document.getElementById('feedbackText');
+            let feedback = [];
+
+            // Section 1 - The Feel (Q1-Q10)
+            let positiveCount = 0;
+            for (let i = 1; i <= 10; i++) {
+                if (answers[`q${i}`] === 'yes') positiveCount++;
+            }
+            feedback.push(positiveCount >= 5
+                ? 'This seems like a reasonable house to write an offer on.'
+                : 'This seems like a good house to pass up on.');
+
+            // Section 2 - The Condition (Q11-Q20)
+            let conditionFeedback = [];
+            if (answers['q11'] === 'yes') {
+                conditionFeedback.push('Could have some settling or potential structural issues. Definitely consult your Realtor on the proper inspections to get.');
+            }
+            if (answers['q12'] === 'yes') {
+                conditionFeedback.push('Seems like there might be a current or old roof leak. Ask the seller if they are aware of this, and be sure to get a roof inspection.');
+            }
+            if (answers['q13'] === 'yes') {
+                conditionFeedback.push('You’ll want a mold inspection.');
+            }
+            if (answers['q14'] === 'yes') {
+                conditionFeedback.push('Could have some settling or potential structural issues. Definitely consult your Realtor on the proper inspections to get.');
+            }
+            if (answers['q15'] === 'yes') {
+                if (answers['q12'] === 'yes') {
+                    conditionFeedback.push('Roof is likely needing replacement. Definitely get a roof inspection.');
+                } else {
+                    conditionFeedback.push('Doesn’t look like any roof leaks are apparent, but the roof may be getting older; definitely get a roof inspection.');
+                }
+            }
+            if (answers['q16'] === 'yes') {
+                conditionFeedback.push('Old systems aren’t a guarantee the Air Conditioner is bad, but definitely get it inspected.');
+            }
+            if (answers['q17'] === 'yes') {
+                conditionFeedback.push('Old systems aren’t a guarantee the Heater is bad, but definitely get it inspected.');
+            }
+            if (answers['q18'] === 'yes') {
+                conditionFeedback.push('Make sure your inspector checks the crawl space.');
+            }
+            if (answers['q19'] === 'yes') {
+                conditionFeedback.push('Some repairs to the water heater are probably due. Have a plumber take a look.');
+            }
+            if (answers['q20'] === 'yes') {
+                conditionFeedback.push('Get that Zinsco panel replaced ASAP. Have an electrician get you a bid. Negotiate the seller to cover that cost.');
+            }
+
+            if (conditionFeedback.length > 0) {
+                feedback.push(...conditionFeedback);
+            } else {
+                feedback.push("You didn't note any major redflags on the condition of the home. That's Awesome! Don't skip your inspections though, paint is a powerful tool! Have your Realtor guide you.");
+            }
+
+            // Section 3 - The Area (Q21-Q30)
+            let areaFeedback = [];
+            if (answers['q21'] === 'yes') areaFeedback.push('If there are a lot of cars now, there will be a lot of cars when you live here. Consider if you’re okay with that.');
+            if (answers['q22'] === 'yes') areaFeedback.push('If the neighbor’s fence looks bad, but this house’s fence looks good, ask the seller if he has ever had issues with the neighbor.');
+            if (answers['q23'] === 'yes') areaFeedback.push('Litter or overgrown weeds nearby might mean the neighborhood isn’t well cared for. Think about the long-term effects of that.');
+            if (answers['q24'] === 'yes') areaFeedback.push('Will the noise drive you crazy?');
+            if (answers['q25'] === 'yes') areaFeedback.push('Nearby homes and lawns that look neglected might mean it’s a high rental market. Ask your Realtor about this.');
+            if (answers['q26'] === 'yes') areaFeedback.push('Inviting parks or playgrounds nearby are a great perk for outdoor activities!');
+            else if (answers['q26'] === 'no') areaFeedback.push('Are parks on your dream list?');
+            if (answers['q27'] === 'yes') areaFeedback.push('A well-kept and active school nearby can be a plus for families!');
+            else if (answers['q27'] === 'no') areaFeedback.push('A school that doesn’t look well-kept might suggest the area isn’t ideal for families.');
+            if (answers['q28'] === 'yes') areaFeedback.push('Broken sidewalks or uneven roads can make walking or biking difficult and might point to neglected infrastructure.');
+            if (answers['q29'] === 'yes') areaFeedback.push('Having shops, grocery stores, or cafes nearby adds convenience to your daily life!');
+            else if (answers['q29'] === 'no') areaFeedback.push('The lack of nearby shops or cafes might make daily errands less convenient.');
+            if (answers['q30'] === 'yes') areaFeedback.push('A vibe you enjoy means this area could be a great fit for you!');
+            else if (answers['q30'] === 'no') areaFeedback.push('If the area’s vibe doesn’t feel right, you might not enjoy living here long-term.');
+
+            if (areaFeedback.length > 0) {
+                feedback.push(...areaFeedback);
+            } else {
+                feedback.push('Neighborhood might be good! Talk to some neighbors to be sure.');
+            }
+
+            // Combine all feedback into a single flowing paragraph
+            feedbackText.innerHTML = feedback.join(' ');
+        };
+    </script>
+</body>
+</html>
